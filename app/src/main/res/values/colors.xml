@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="green">#4CAF50</color> <!-- You can adjust the color value -->
+    <color name="red">#F44336</color> <!-- You can adjust the color value -->
+    <color name="buttonTextColor">#333333</color> <!-- Dark Grey text color -->
+    <color name="buttonBackgroundColor">#E0E0E0</color> <!-- Light Grey background color -->
+    <color name="buttonBorderColor">#CCCCCC</color> <!-- Border color -->
+    <color name="buttonColor">#00BCD4</color>
+    <color name="colorPrimary">#23272A</color>
+    <color name="colorPrimaryDark">#2C2F33</color>
+    <color name="colorAccent">#00BCD4</color>
+    <color name="textColor">#CCCCCC</color>
+    <color name="backgroundColor">#2C2F33</color>
+
+</resources>

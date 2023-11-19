@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Save Button Style -->
+    <style name="SaveButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:backgroundTint">@color/green</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="cornerRadius">8dp</item>
+    </style>
+
+    <!-- Cancel Button Style -->
+    <style name="CancelButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:backgroundTint">@color/red</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="cornerRadius">8dp</item>
+    </style>
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:statusBarColor">#000000</item>
+
+    </style>
+    <style name="DarkToolbar" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
+        <item name="android:background">#1E1E1E</item> <!-- Set the background color to a dark color -->
+        <item name="android:textColorPrimary">#FFFFFF</item> <!-- Set the title text color to white -->
+        <item name="actionMenuTextColor">#FFFFFF</item> <!-- Set the menu item text color to white -->
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+    <style name="CustomPreferenceTheme" parent="PreferenceThemeOverlay">
+        <item name="android:paddingStart">0dp</item>
+        <item name="android:paddingEnd">0dp</item>
+    </style>
+
+</resources>
