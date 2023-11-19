@@ -1,4 +1,4 @@
-package com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.settings
+package com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.settings
 
 import android.content.Intent
 import android.net.Uri

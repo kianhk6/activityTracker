@@ -1,4 +1,4 @@
-package com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.settings
+package com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.settings
 
 import android.app.Activity
 import android.app.AlertDialog

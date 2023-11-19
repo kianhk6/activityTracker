@@ -1,4 +1,4 @@
-package com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.history
+package com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.history
 
 import android.content.Intent
 import android.os.Bundle
@@ -10,8 +10,8 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
-import com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.details.DetailsActivityManualEntry
-import com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.details.DetailsActivityMap
+import com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.details.DetailsActivityManualEntry
+import com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.details.DetailsActivityMap
 import com.example.kian_hosseinkhani_myruns2.R
 import com.example.kian_hosseinkhani_myruns2.Util
 import com.example.kian_hosseinkhani_myruns2.model.ExerciseDatabase

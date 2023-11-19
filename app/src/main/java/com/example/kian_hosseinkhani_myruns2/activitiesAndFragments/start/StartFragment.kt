@@ -1,4 +1,4 @@
-package com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.start
+package com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.start
 
 import android.content.Intent
 import android.os.Bundle
@@ -9,8 +9,8 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.Spinner
 import androidx.fragment.app.Fragment
-import com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.start.GPS.GpsActivity
-import com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.start.manualEntry.ManualEntryActivity
+import com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.start.GPS.GpsActivity
+import com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.start.manualEntry.ManualEntryActivity
 import com.example.kian_hosseinkhani_myruns2.R
 
 //class StartFragment : Fragment() {

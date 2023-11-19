@@ -1,4 +1,4 @@
-package com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.details
+package com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.details
 
 import android.os.Bundle
 import android.widget.Button

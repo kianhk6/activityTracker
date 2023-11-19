@@ -5,9 +5,9 @@ import android.os.Bundle
 import androidx.appcompat.widget.Toolbar
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.widget.ViewPager2
-import com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.history.HistoryFragment
-import com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.settings.SettingsFragment
-import com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.start.StartFragment
+import com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.history.HistoryFragment
+import com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.settings.SettingsFragment
+import com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.start.StartFragment
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import java.util.ArrayList

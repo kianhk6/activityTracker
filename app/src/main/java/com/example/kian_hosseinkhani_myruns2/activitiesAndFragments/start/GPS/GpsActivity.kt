@@ -1,4 +1,4 @@
-package com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.start.GPS
+package com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.start.GPS
 
 import android.Manifest
 import android.annotation.SuppressLint

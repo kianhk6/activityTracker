@@ -1,4 +1,4 @@
-package com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.history
+package com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.history
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -13,7 +13,6 @@ import com.example.kian_hosseinkhani_myruns2.R
 import com.example.kian_hosseinkhani_myruns2.Util
 import com.example.kian_hosseinkhani_myruns2.model.ExerciseEntry
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Locale
 
 class HistoryAdapter(private val context: Context, private var dataList: List<ExerciseEntry>) : BaseAdapter(), SharedPreferences.OnSharedPreferenceChangeListener {

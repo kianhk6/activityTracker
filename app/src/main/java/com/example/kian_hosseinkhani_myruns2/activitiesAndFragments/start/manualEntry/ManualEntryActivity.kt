@@ -1,4 +1,4 @@
-package com.example.kian_hosseinkhani_myruns2.ActivitiesAndFragments.start.manualEntry
+package com.example.kian_hosseinkhani_myruns2.activitiesAndFragments.start.manualEntry
 
 import android.os.Bundle
 import android.widget.ArrayAdapter

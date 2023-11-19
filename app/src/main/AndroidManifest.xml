@@ -34,11 +34,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".ActivitiesAndFragments.start.manualEntry.ManualEntryActivity" />
-        <activity android:name=".ActivitiesAndFragments.start.GPS.GpsActivity" />
-        <activity android:name=".ActivitiesAndFragments.settings.UserProfileSettings" />
-        <activity android:name=".ActivitiesAndFragments.details.DetailsActivityManualEntry"/>
-        <activity android:name=".ActivitiesAndFragments.details.DetailsActivityMap"/>
+        <activity android:name=".activitiesAndFragments.start.manualEntry.ManualEntryActivity" />
+        <activity android:name=".activitiesAndFragments.start.GPS.GpsActivity" />
+        <activity android:name=".activitiesAndFragments.settings.UserProfileSettings" />
+        <activity android:name=".activitiesAndFragments.details.DetailsActivityManualEntry"/>
+        <activity android:name=".activitiesAndFragments.details.DetailsActivityMap"/>
 
         <service android:name=".services.TrackingService" />
 
