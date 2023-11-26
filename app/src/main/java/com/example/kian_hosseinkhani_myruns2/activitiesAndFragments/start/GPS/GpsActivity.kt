@@ -100,6 +100,8 @@ class GpsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var exerciseViewModel: ExerciseViewModel
     private lateinit var selectedActivityType: String
     private lateinit var selectedInputType: String
+    val activityCounts = intArrayOf(0, 0, 0) // Array to hold counts for each activity type
+
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -143,7 +145,12 @@ class GpsActivity : AppCompatActivity(), OnMapReadyCallback {
 
             val (minutes, seconds) = calculateMinutesAndSeconds(it.duration)
 
-            println("activity type from GPSActivity: " + Util.idToActivityType(it.activityType))
+            if(selectedInputType != "GPS"){
+                // Update the activity count
+                if (it.activityType in 0..2) {
+                    activityCounts[it.activityType]++
+                }
+            }
             var timeString = ""
             timeString = if(minutes == 0){
                 "$seconds secs"
@@ -306,9 +313,11 @@ class GpsActivity : AppCompatActivity(), OnMapReadyCallback {
         if (view == saveButton) {
             latestExerciseEntry?.let { entry ->
                 if(selectedInputType != "GPS"){
-                    entry.activityType = -1
+                    val mostFrequentActivityIndex = activityCounts.indices.maxByOrNull { index -> activityCounts[index] } ?: -1
+                    entry.activityType = mostFrequentActivityIndex
                     entry.inputType = 2
                 }
+
                 exerciseViewModel.insert(entry)
             }
             unBindService()

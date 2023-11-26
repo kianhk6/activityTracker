@@ -25,9 +25,9 @@ import com.example.kian_hosseinkhani_myruns2.R
 class StartFragment : Fragment() {
 
     private val inputTypes = listOf("Manual Entry", "GPS", "Automatic")
-    private val activityTypes = listOf("Running", "Walking", "Standing",  "Cycling", "Hiking",
+    private val activityTypes = listOf("Standing", "Walking", "Running", "Cycling", "Hiking",
         "Downhill Skiing", "Cross-Country Skiing", "Snowboarding", "Skating",
-        "Swimming", "Mountain Biking", "Wheelchair", "Elliptical", "Other")
+        "Swimming", "Mountain Biking", "Wheelchair", "Elliptical", "Unknown")
 
     override fun onCreateView(
         inflater: LayoutInflater,

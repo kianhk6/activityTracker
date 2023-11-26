@@ -12,7 +12,7 @@ import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 object Util {
-    private val activityTypes = listOf("Running", "Walking", "Standing",  "Cycling", "Hiking",
+    private val activityTypes = listOf("Standing", "Walking", "Running", "Cycling", "Hiking",
         "Downhill Skiing", "Cross-Country Skiing", "Snowboarding", "Skating",
         "Swimming", "Mountain Biking", "Wheelchair", "Elliptical", "Unknown")
     fun checkPermissions(activity: Activity?) {

@@ -34,6 +34,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import java.text.DecimalFormat
 import java.util.concurrent.ArrayBlockingQueue
 import weka.core.Attribute
@@ -72,16 +73,17 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
     private lateinit var mSensorManager: SensorManager
     private lateinit var mAccelerometer: Sensor
     private var mServiceTaskType = 0
-    private lateinit var mAsyncTask: OnSensorChangedTask
+//    private lateinit var mAsyncTask: OnSensorChangedTask
     private lateinit var mAccBuffer: ArrayBlockingQueue<Double>
     private lateinit var mClassAttribute: Attribute
     private val mFeatLen = Globals.ACCELEROMETER_BLOCK_CAPACITY + 1
-    private var currentActivityType : Double = 0.0
 
     private val sensorDataChannel = Channel<Double>(Channel.UNLIMITED)
     private var processingJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default)
-
+    init {
+        startProcessing()
+    }
     override fun onCreate() {
         super.onCreate()
         mAccBuffer = ArrayBlockingQueue<Double>(Globals.ACCELEROMETER_BUFFER_CAPACITY)
@@ -153,8 +155,8 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
         // Construct the dataset with the attributes specified as allAttr and
         // capacity 10000
 
-        mAsyncTask = OnSensorChangedTask()
-        mAsyncTask.execute()
+//        mAsyncTask = OnSensorChangedTask()
+//        mAsyncTask.execute()
 
 
         println("debug: Service onStartCommand() called everytime startService() is called; startId: $startId flags: $flags")
@@ -197,8 +199,7 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
 
     // clean up notifications, ....
     override fun onDestroy() {
-
-        mAsyncTask.cancel(true)
+        stopTracking()
         try {
             Thread.sleep(100)
         } catch (e: InterruptedException) {
@@ -438,56 +439,31 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
         return currentSpeed
     }
 
-    inner class OnSensorChangedTask : AsyncTask<Void, Void, Void>() {
-        override fun doInBackground(vararg p0: Void?): Void? {
+    private fun startProcessing() {
+        processingJob = scope.launch {
             val inst: Instance = DenseInstance(mFeatLen)
             val fft = FFT(Globals.ACCELEROMETER_BLOCK_CAPACITY)
             val accBlock = DoubleArray(Globals.ACCELEROMETER_BLOCK_CAPACITY)
             val im = DoubleArray(Globals.ACCELEROMETER_BLOCK_CAPACITY)
-            var max = Double.MIN_VALUE
             var blockSize = 0
 
-            while (true) {
-                try {
-                    // need to check if the AsyncTask is cancelled or not in the while loop
-                    if (isCancelled() == true) {
-                        return null
+            for (value in sensorDataChannel) {
+                accBlock[blockSize++] = value
+                if (blockSize == Globals.ACCELEROMETER_BLOCK_CAPACITY) {
+                    blockSize = 0
+                    val max = accBlock.maxOrNull() ?: Double.MIN_VALUE
+                    fft.fft(accBlock, im)
+                    for (i in accBlock.indices) {
+                        val mag = Math.sqrt(accBlock[i] * accBlock[i] + im[i] * im[i])
+                        inst.setValue(i, mag)
+                        im[i] = 0.0
                     }
-
-                    // Dumping buffer
-                    accBlock[blockSize++] = mAccBuffer.take().toDouble()
-                    if (blockSize == Globals.ACCELEROMETER_BLOCK_CAPACITY) {
-                        blockSize = 0
-
-                        // time = System.currentTimeMillis();
-                        max = .0
-                        for (`val` in accBlock) {
-                            if (max < `val`) {
-                                max = `val`
-                            }
-                        }
-                        fft.fft(accBlock, im)
-                        for (i in accBlock.indices) {
-                            val mag = Math.sqrt(
-                                accBlock[i] * accBlock[i] + im[i]
-                                        * im[i]
-                            )
-                            inst.setValue(i, mag)
-                            im[i] = .0 // Clear the field
-                        }
-
-                        // Append max after frequency component
-                        inst.setValue(Globals.ACCELEROMETER_BLOCK_CAPACITY, max)
-
-                        classifyActivity(inst)
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                    inst.setValue(Globals.ACCELEROMETER_BLOCK_CAPACITY, max)
+                    classifyActivity(inst)
                 }
             }
         }
     }
-
     private fun classifyActivity(instance: Instance) {
         try {
             // Convert DenseInstance to Object array
@@ -498,7 +474,6 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
             println("Instance Values: ${objectArray.contentToString()}")
             val result = WekaClassifier.classify(objectArray)
 
-            currentActivityType = result
             println("Classification Result: $result")
             exerciseEntry.activityType = result.toInt()
             // Handle the classification result
@@ -509,10 +484,8 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
     }
     override fun onSensorChanged(event: SensorEvent) {
         if (event.sensor.type == Sensor.TYPE_LINEAR_ACCELERATION) {
-            val m = Math.sqrt(
-                (event.values[0] * event.values[0] + event.values[1] * event.values[1] + (event.values[2]
-                        * event.values[2])).toDouble()
-            )
+            val m = Math.sqrt((event.values[0] * event.values[0] + event.values[1] * event.values[1] + (event.values[2] * event.values[2])).toDouble())
+            sensorDataChannel.trySend(m).isSuccess
 
             // Inserts the specified element into this queue if it is possible
             // to do so immediately without violating capacity restrictions,
@@ -534,7 +507,10 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
             }
         }
     }
-
+    fun stopTracking() {
+        processingJob?.cancel()
+        sensorDataChannel.close()
+    }
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
 
