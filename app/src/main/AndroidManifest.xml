@@ -35,10 +35,14 @@
             </intent-filter>
         </activity>
         <activity android:name=".activitiesAndFragments.start.manualEntry.ManualEntryActivity" />
-        <activity android:name=".activitiesAndFragments.start.GPS.GpsActivity" />
+        <activity android:name=".activitiesAndFragments.start.GPS.GpsActivity"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity" />
         <activity android:name=".activitiesAndFragments.settings.UserProfileSettings" />
         <activity android:name=".activitiesAndFragments.details.DetailsActivityManualEntry"/>
-        <activity android:name=".activitiesAndFragments.details.DetailsActivityMap"/>
+        <activity android:name=".activitiesAndFragments.details.DetailsActivityMap"
+            android:screenOrientation="portrait"
+            tools:ignore="LockedOrientationActivity" />
 
         <service android:name=".services.TrackingService" />
 

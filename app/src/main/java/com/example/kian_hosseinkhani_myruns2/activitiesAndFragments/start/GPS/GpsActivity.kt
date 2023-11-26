@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.hardware.SensorManager
 import android.location.Location
 import android.os.Build
 import android.os.Bundle
@@ -26,7 +27,9 @@ import com.example.kian_hosseinkhani_myruns2.model.ExerciseDatabase
 import com.example.kian_hosseinkhani_myruns2.model.ExerciseDatabaseDao
 import com.example.kian_hosseinkhani_myruns2.model.ExerciseEntry
 import com.example.kian_hosseinkhani_myruns2.reprository.ExerciseRepository
+import com.example.kian_hosseinkhani_myruns2.services.FFT
 import com.example.kian_hosseinkhani_myruns2.services.TrackingService
+//import com.example.kian_hosseinkhani_myruns2.services.WekaClassifier
 import com.example.kian_hosseinkhani_myruns2.viewModel.ExerciseViewModel
 import com.example.kian_hosseinkhani_myruns2.viewModel.ExerciseViewModelFactory
 import com.example.kian_hosseinkhani_myruns2.viewModel.TrackingViewModel
@@ -42,7 +45,6 @@ import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.Polyline
 import com.google.android.gms.maps.model.PolylineOptions
-
 
 class GpsActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var mMap: GoogleMap
@@ -121,7 +123,6 @@ class GpsActivity : AppCompatActivity(), OnMapReadyCallback {
         exerciseViewModel = ViewModelProvider(this, viewModelFactory).get(ExerciseViewModel::class.java)
 
 
-
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
         val unitPreferenceValue = sharedPreferences.getString("unitPreference", "Miles")
 
@@ -141,11 +142,8 @@ class GpsActivity : AppCompatActivity(), OnMapReadyCallback {
 
 
             val (minutes, seconds) = calculateMinutesAndSeconds(it.duration)
-            var activityType = Util.idToActivityType(it.activityType)
-            if(selectedInputType != "GPS"){
-                println(selectedInputType)
-                activityType = "Unknown"
-            }
+
+            println("activity type from GPSActivity: " + Util.idToActivityType(it.activityType))
             var timeString = ""
             timeString = if(minutes == 0){
                 "$seconds secs"
@@ -153,7 +151,7 @@ class GpsActivity : AppCompatActivity(), OnMapReadyCallback {
                 "$minutes minutes, $seconds secs"
             }
             val displayText = """
-            Type: ${activityType}
+            Type: ${Util.idToActivityType(it.activityType)}
             Avg Speed: ${String.format("%.2f", it.avgSpeed)} $largeUnitPerHour
             Cur Speed: ${String.format("%.2f", it.avgPace)} $largeUnitPerHour
             Climb: ${String.format("%.2f", it.climb)} $smallUnit
@@ -296,6 +294,10 @@ class GpsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onDestroy() {
         super.onDestroy()
+        // stopping the sensor as soon as service is stopped
+//        if(selectedInputType == "Automatic"){
+//            sensorManager.unregisterListener(this)
+//        }
         backPressedCallback.remove()
     }
 

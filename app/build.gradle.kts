@@ -63,5 +63,8 @@ dependencies {
     //XD added: google play map services
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.maps.android:android-maps-utils:2.3.0")
+    implementation("org.apache.commons:commons-math3:3.6.1")
+
+    implementation(files("libs/weka.jar"))
 
 }

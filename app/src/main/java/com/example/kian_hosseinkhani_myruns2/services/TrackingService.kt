@@ -5,9 +5,16 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.graphics.Color
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.net.Uri
+import android.os.AsyncTask
 import android.os.Binder
 import android.os.Build
 import android.os.Bundle
@@ -23,8 +30,18 @@ import com.example.kian_hosseinkhani_myruns2.model.ExerciseEntry
 import com.google.android.gms.maps.model.LatLng
 import java.util.Calendar
 import com.google.maps.android.SphericalUtil
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import java.text.DecimalFormat
+import java.util.concurrent.ArrayBlockingQueue
+import weka.core.Attribute
+import weka.core.DenseInstance
+import weka.core.Instance
+import weka.core.Instances
 
-class TrackingService : Service(), LocationListener {
+class TrackingService : Service(), LocationListener, SensorEventListener {
     private var numOfZeros: Int = 0
     private var prevPace: Double = 0.0
 
@@ -35,23 +52,39 @@ class TrackingService : Service(), LocationListener {
     private val CHANNEL_ID = "notification channel"
 
     // this a variable we are returning at the end
-    private lateinit var  myBinder: MyBinder
+    private lateinit var myBinder: MyBinder
 
     // 3. using handler to send a message from counter service to view model [in timerTask we are
     // sending the message]
     // upon binding the newly created handler object gets assigned
     private var msgHandler: Handler? = null
-    companion object{
+
+    companion object {
         val EXERCISE_UPDATE = 1
     }
 
     private lateinit var exerciseEntry: ExerciseEntry
     private lateinit var locationManager: LocationManager
-    private var selectedActivityType = ""
+//    private var selectedActivityType = ""
     private var selectedInputType = ""
     private var previousAltitude = Double.MIN_VALUE
+
+    private lateinit var mSensorManager: SensorManager
+    private lateinit var mAccelerometer: Sensor
+    private var mServiceTaskType = 0
+    private lateinit var mAsyncTask: OnSensorChangedTask
+    private lateinit var mAccBuffer: ArrayBlockingQueue<Double>
+    private lateinit var mClassAttribute: Attribute
+    private val mFeatLen = Globals.ACCELEROMETER_BLOCK_CAPACITY + 1
+    private var currentActivityType : Double = 0.0
+
+    private val sensorDataChannel = Channel<Double>(Channel.UNLIMITED)
+    private var processingJob: Job? = null
+    private val scope = CoroutineScope(Dispatchers.Default)
+
     override fun onCreate() {
         super.onCreate()
+        mAccBuffer = ArrayBlockingQueue<Double>(Globals.ACCELEROMETER_BUFFER_CAPACITY)
 
         Log.d("debug", "Service onCreate() called")
 
@@ -60,12 +93,11 @@ class TrackingService : Service(), LocationListener {
 
         unitPreferenceValue = sharedPreferences.getString("unitPreference", "Miles")
 
-
         exerciseEntry = ExerciseEntry(
             // assuming you have an id generation mechanism in your DAO or entity
-            dateTime =  Calendar.getInstance(),
-            duration =  0.0,
-            distance =  0.0,
+            dateTime = Calendar.getInstance(),
+            duration = 0.0,
+            distance = 0.0,
             calorie = 0.0,
             heartRate = 0.0,
             comment = "",
@@ -73,7 +105,7 @@ class TrackingService : Service(), LocationListener {
             avgSpeed = 0.0,
             climb = 0.0,
             locationList = ArrayList<LatLng>(), // Empty ArrayList to store location data
-            activityType = Util.activityTypeToId(selectedActivityType),
+            activityType = Util.activityTypeToId("Standing"),
             inputType = 1, // define according to where you get this information
             unit_preference = unitPreferenceValue.toString(),
         )
@@ -91,11 +123,44 @@ class TrackingService : Service(), LocationListener {
     // similar to last demo
     // this gets called when service gets started
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        mSensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+        mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)!!
+        mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_FASTEST)
+        mServiceTaskType = Globals.SERVICE_TASK_TYPE_COLLECT
+
+        // Create the container for attributes
+        val allAttr = java.util.ArrayList<Attribute>()
+
+        // Adding FFT coefficient attributes
+        val df = DecimalFormat("0000")
+
+        for (i in 0 until Globals.ACCELEROMETER_BLOCK_CAPACITY) {
+            allAttr.add(Attribute(Globals.FEAT_FFT_COEF_LABEL + df.format(i.toLong())))
+        }
+
+        // Adding the max feature
+        allAttr.add(Attribute(Globals.FEAT_MAX_LABEL))
+
+        // Declare a nominal attribute along with its candidate values
+        val labelItems = java.util.ArrayList<String>(3)
+        labelItems.add(Globals.CLASS_LABEL_STANDING)
+        labelItems.add(Globals.CLASS_LABEL_WALKING)
+        labelItems.add(Globals.CLASS_LABEL_RUNNING)
+        labelItems.add(Globals.CLASS_LABEL_OTHER)
+        mClassAttribute = Attribute(Globals.CLASS_LABEL_KEY, labelItems)
+        allAttr.add(mClassAttribute)
+
+        // Construct the dataset with the attributes specified as allAttr and
+        // capacity 10000
+
+        mAsyncTask = OnSensorChangedTask()
+        mAsyncTask.execute()
+
+
         println("debug: Service onStartCommand() called everytime startService() is called; startId: $startId flags: $flags")
         // if OS kills service let it remain dead
-        selectedActivityType = intent?.getStringExtra("selectedActivityType").toString()
+//        selectedActivityType = intent?.getStringExtra("selectedActivityType").toString()
         selectedInputType = intent?.getStringExtra("selectedInputType").toString()
-        println("input type in service " + selectedInputType)
         return START_NOT_STICKY
     }
 
@@ -132,6 +197,15 @@ class TrackingService : Service(), LocationListener {
 
     // clean up notifications, ....
     override fun onDestroy() {
+
+        mAsyncTask.cancel(true)
+        try {
+            Thread.sleep(100)
+        } catch (e: InterruptedException) {
+            e.printStackTrace()
+        }
+        mSensorManager.unregisterListener(this)
+
         super.onDestroy()
         println("debug: Service onDestroy")
         cleanupTasks()
@@ -144,7 +218,7 @@ class TrackingService : Service(), LocationListener {
         stopSelf()
     }
 
-    private fun cleanupTasks(){
+    private fun cleanupTasks() {
         // removing notification
         notificationManager.cancel(NOTIFICATION_ID)
         // Stopping location updates
@@ -152,6 +226,7 @@ class TrackingService : Service(), LocationListener {
             locationManager.removeUpdates(this)
         }
     }
+
 
     private fun showNotification() {
         val intent = Intent(this, MainActivity::class.java)
@@ -214,7 +289,7 @@ class TrackingService : Service(), LocationListener {
 
     override fun onLocationChanged(location: Location) {
         // Assuming unitPreferenceValue is a String that can be "Miles" or "Kilometers"
-        if(exerciseEntry.avgPace != 0.0){
+        if (exerciseEntry.avgPace != 0.0) {
             prevPace = exerciseEntry.avgPace
         }
 
@@ -227,7 +302,7 @@ class TrackingService : Service(), LocationListener {
         val currentSpeedMetersPerSec = location.speed
 
         // Convert speed to the desired unit
-        var currentSpeed = unitCorrectionForSpeed(isUnitMiles, currentSpeedMetersPerSec)
+        val currentSpeed = unitCorrectionForSpeed(isUnitMiles, currentSpeedMetersPerSec)
 
 
         val climb = calculateClimb(location)
@@ -241,20 +316,8 @@ class TrackingService : Service(), LocationListener {
 
         exerciseEntry.climb = unitCorrectionForClimb(isUnitMiles, climb)
 
-        // try this if you get 0 on some frames this uses prev speeds number in those scenarios
-//        if(currentSpeed == 0.0){
-//            println("hello2")
-//            numOfZeros++
-//            if(numOfZeros < 3){
-//                currentSpeed = prevPace
-//                println("hello3")
-//            }
-//            else{
-//                println("hello4")
-//                currentSpeed = 0.0
-//                numOfZeros = 0
-//            }
-//        }
+
+//        println("from location changed: " + selectedInputType);
 
         // Calculate distance
         val distanceMeters = calculateDistance(newLatLng)
@@ -268,7 +331,8 @@ class TrackingService : Service(), LocationListener {
 
 
         val (weightInKg, metValue) = getWeightAndMet()
-        val totalTimeInSeconds = (System.currentTimeMillis() - exerciseEntry.dateTime!!.timeInMillis) / 1000.0 // Time in seconds
+        val totalTimeInSeconds =
+            (System.currentTimeMillis() - exerciseEntry.dateTime!!.timeInMillis) / 1000.0 // Time in seconds
 
         // Calculate the duration in hours
         val durationInHours = secondsToHour(totalTimeInSeconds)
@@ -279,8 +343,8 @@ class TrackingService : Service(), LocationListener {
         val averageSpeed = calculateAverageSpeed(totalTimeInSeconds)
         exerciseEntry.avgSpeed = averageSpeed
         exerciseEntry.duration = totalTimeInSeconds
-        exerciseEntry.activityType = Util.activityTypeToId(selectedActivityType)
         exerciseEntry.unit_preference = unitPreferenceValue.toString()
+
         // Send updated exerciseEntry to the msgHandler
         if (msgHandler != null) {
             val message = msgHandler!!.obtainMessage()
@@ -356,11 +420,14 @@ class TrackingService : Service(), LocationListener {
 
         val weightInKg = 70.3
 
-        val metValue = metValues[selectedActivityType] ?: metValues["Other"]!!
+        val metValue = metValues[Util.idToActivityType(exerciseEntry.activityType)] ?: metValues["Other"]!!
         return Pair(weightInKg, metValue)
     }
 
-    private fun unitCorrectionForSpeed(isUnitMiles: Boolean, currentSpeedMetersPerSec: Float): Double {
+    private fun unitCorrectionForSpeed(
+        isUnitMiles: Boolean,
+        currentSpeedMetersPerSec: Float
+    ): Double {
         var currentSpeed = if (isUnitMiles) {
             // Convert to miles/hour
             currentSpeedMetersPerSec * 2.23694
@@ -370,6 +437,105 @@ class TrackingService : Service(), LocationListener {
         }
         return currentSpeed
     }
+
+    inner class OnSensorChangedTask : AsyncTask<Void, Void, Void>() {
+        override fun doInBackground(vararg p0: Void?): Void? {
+            val inst: Instance = DenseInstance(mFeatLen)
+            val fft = FFT(Globals.ACCELEROMETER_BLOCK_CAPACITY)
+            val accBlock = DoubleArray(Globals.ACCELEROMETER_BLOCK_CAPACITY)
+            val im = DoubleArray(Globals.ACCELEROMETER_BLOCK_CAPACITY)
+            var max = Double.MIN_VALUE
+            var blockSize = 0
+
+            while (true) {
+                try {
+                    // need to check if the AsyncTask is cancelled or not in the while loop
+                    if (isCancelled() == true) {
+                        return null
+                    }
+
+                    // Dumping buffer
+                    accBlock[blockSize++] = mAccBuffer.take().toDouble()
+                    if (blockSize == Globals.ACCELEROMETER_BLOCK_CAPACITY) {
+                        blockSize = 0
+
+                        // time = System.currentTimeMillis();
+                        max = .0
+                        for (`val` in accBlock) {
+                            if (max < `val`) {
+                                max = `val`
+                            }
+                        }
+                        fft.fft(accBlock, im)
+                        for (i in accBlock.indices) {
+                            val mag = Math.sqrt(
+                                accBlock[i] * accBlock[i] + im[i]
+                                        * im[i]
+                            )
+                            inst.setValue(i, mag)
+                            im[i] = .0 // Clear the field
+                        }
+
+                        // Append max after frequency component
+                        inst.setValue(Globals.ACCELEROMETER_BLOCK_CAPACITY, max)
+
+                        classifyActivity(inst)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
+    private fun classifyActivity(instance: Instance) {
+        try {
+            // Convert DenseInstance to Object array
+            val objectArray: Array<Object> = Array(instance.numAttributes()) { i ->
+                instance.value(i) as Object
+            }
+
+            println("Instance Values: ${objectArray.contentToString()}")
+            val result = WekaClassifier.classify(objectArray)
+
+            currentActivityType = result
+            println("Classification Result: $result")
+            exerciseEntry.activityType = result.toInt()
+            // Handle the classification result
+        } catch (e: Exception) {
+            // Handle any exceptions
+            e.printStackTrace()
+        }
+    }
+    override fun onSensorChanged(event: SensorEvent) {
+        if (event.sensor.type == Sensor.TYPE_LINEAR_ACCELERATION) {
+            val m = Math.sqrt(
+                (event.values[0] * event.values[0] + event.values[1] * event.values[1] + (event.values[2]
+                        * event.values[2])).toDouble()
+            )
+
+            // Inserts the specified element into this queue if it is possible
+            // to do so immediately without violating capacity restrictions,
+            // returning true upon success and throwing an IllegalStateException
+            // if no space is currently available. When using a
+            // capacity-restricted queue, it is generally preferable to use
+            // offer.
+            try {
+                mAccBuffer.add(m)
+            } catch (e: IllegalStateException) {
+
+                // Exception happens when reach the capacity.
+                // Doubling the buffer. ListBlockingQueue has no such issue,
+                // But generally has worse performance
+                val newBuf = ArrayBlockingQueue<Double>(mAccBuffer.size * 2)
+                mAccBuffer.drainTo(newBuf)
+                mAccBuffer = newBuf
+                mAccBuffer.add(m)
+            }
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
 
 }
