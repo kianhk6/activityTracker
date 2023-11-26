@@ -66,7 +66,7 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
 
     private lateinit var exerciseEntry: ExerciseEntry
     private lateinit var locationManager: LocationManager
-//    private var selectedActivityType = ""
+    private var selectedActivityType = ""
     private var selectedInputType = ""
     private var previousAltitude = Double.MIN_VALUE
 
@@ -81,9 +81,7 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
     private val sensorDataChannel = Channel<Double>(Channel.UNLIMITED)
     private var processingJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default)
-    init {
-        startProcessing()
-    }
+
     override fun onCreate() {
         super.onCreate()
         mAccBuffer = ArrayBlockingQueue<Double>(Globals.ACCELEROMETER_BUFFER_CAPACITY)
@@ -91,10 +89,6 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
         Log.d("debug", "Service onCreate() called")
 
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
-
-
-        unitPreferenceValue = sharedPreferences.getString("unitPreference", "Miles")
-
         exerciseEntry = ExerciseEntry(
             // assuming you have an id generation mechanism in your DAO or entity
             dateTime = Calendar.getInstance(),
@@ -107,10 +101,14 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
             avgSpeed = 0.0,
             climb = 0.0,
             locationList = ArrayList<LatLng>(), // Empty ArrayList to store location data
-            activityType = Util.activityTypeToId("Standing"),
-            inputType = 1, // define according to where you get this information
+            // start with 0 (standing) for automatic
+            activityType = if (selectedInputType == "GPS") Util.activityTypeToId(selectedActivityType) else 0,
+            inputType = if (selectedInputType == "GPS") 1 else 2, // GPS is mapped to 1
             unit_preference = unitPreferenceValue.toString(),
         )
+
+        unitPreferenceValue = sharedPreferences.getString("unitPreference", "Miles")
+
 
         initLocationManager()
 
@@ -125,11 +123,12 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
     // similar to last demo
     // this gets called when service gets started
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        mSensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
-        mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)!!
-        mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_FASTEST)
-        mServiceTaskType = Globals.SERVICE_TASK_TYPE_COLLECT
-
+        if(selectedInputType != "GPS"){
+            mSensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+            mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)!!
+            mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_FASTEST)
+            mServiceTaskType = Globals.SERVICE_TASK_TYPE_COLLECT
+        }
         // Create the container for attributes
         val allAttr = java.util.ArrayList<Attribute>()
 
@@ -152,17 +151,18 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
         mClassAttribute = Attribute(Globals.CLASS_LABEL_KEY, labelItems)
         allAttr.add(mClassAttribute)
 
-        // Construct the dataset with the attributes specified as allAttr and
-        // capacity 10000
-
-//        mAsyncTask = OnSensorChangedTask()
-//        mAsyncTask.execute()
 
 
-        println("debug: Service onStartCommand() called everytime startService() is called; startId: $startId flags: $flags")
-        // if OS kills service let it remain dead
-//        selectedActivityType = intent?.getStringExtra("selectedActivityType").toString()
         selectedInputType = intent?.getStringExtra("selectedInputType").toString()
+        // start up the sensors if its on automatic
+        if(selectedInputType != "GPS"){
+            startProcessing()
+        }
+        selectedActivityType = intent?.getStringExtra("selectedActivityType").toString()
+
+        exerciseEntry.activityType = if (selectedInputType == "GPS") Util.activityTypeToId(selectedActivityType) else 0
+        exerciseEntry.inputType = if (selectedInputType == "GPS") 1 else 2
+
         return START_NOT_STICKY
     }
 
@@ -199,13 +199,15 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
 
     // clean up notifications, ....
     override fun onDestroy() {
-        stopTracking()
+        if(selectedInputType != "GPS"){
+            stopTracking()
+            mSensorManager.unregisterListener(this)
+        }
         try {
             Thread.sleep(100)
         } catch (e: InterruptedException) {
             e.printStackTrace()
         }
-        mSensorManager.unregisterListener(this)
 
         super.onDestroy()
         println("debug: Service onDestroy")
@@ -471,10 +473,10 @@ class TrackingService : Service(), LocationListener, SensorEventListener {
                 instance.value(i) as Object
             }
 
-            println("Instance Values: ${objectArray.contentToString()}")
+//            println("Instance Values: ${objectArray.contentToString()}")
             val result = WekaClassifier.classify(objectArray)
 
-            println("Classification Result: $result")
+//            println("Classification Result: $result")
             exerciseEntry.activityType = result.toInt()
             // Handle the classification result
         } catch (e: Exception) {
